@@ -89,13 +89,15 @@ func Saveimgbytes(b []byte, imgdir string, uid string, force bool, samediff int)
 		log.Errorf("[saveimg] get dhash error: %v\n", err)
 		return "\"stat\": \"dherr\"", ""
 	}
-	if force && Imgexsits(dh) {
-		log.Debugf("[saveimg] force find similar image %s.\n", dh)
-		return "\"stat\":\"exist\", \"img\": \"" + url.QueryEscape(dh) + "\"", dh
+	if force {
+		if Imgexsits(dh) {
+			log.Debugf("[saveimg] force find similar image %s.\n", dh)
+			return "\"stat\":\"exist\", \"img\": \"" + url.QueryEscape(dh) + "\"", dh
+		}
 	} else {
 		for _, name := range images["sum"] {
 			diff, err := HammDistance(dh, name)
-			if err == nil && diff < samediff { // 认为是一张图片
+			if err == nil && diff <= samediff { // 认为是一张图片
 				log.Debugf("[saveimg] old %s.\n", name)
 				return "\"stat\":\"exist\", \"img\": \"" + url.QueryEscape(name) + "\"", name
 			}
