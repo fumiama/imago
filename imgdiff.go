@@ -1,4 +1,3 @@
-// Package imago 图片处理相关
 package imago
 
 import (

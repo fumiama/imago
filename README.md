@@ -19,3 +19,6 @@ Pick a random image
 Save image into imgdir with name like 编码后哈希.webp
 ### func Addimage(name string)
 manually add an image name into map
+### func Imgexsits(name string) bool
+Return whether the name is in map
+### func Setloglevel(level log.Level)

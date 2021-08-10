@@ -1,8 +1,8 @@
+// Package imago Image saving & comparing tool for go based on webp.
 package imago
 
 import (
 	"bytes"
-	"fmt"
 	"image"
 	"io"
 	"math/rand"
@@ -14,6 +14,8 @@ import (
 	"github.com/kolesa-team/go-webp/decoder"
 	"github.com/kolesa-team/go-webp/encoder"
 	"github.com/kolesa-team/go-webp/webp"
+	log "github.com/sirupsen/logrus"
+	easy "github.com/t-tomalak/logrus-easy-formatter"
 )
 
 var (
@@ -21,6 +23,20 @@ var (
 	mutex  sync.Mutex
 )
 
+func init() {
+	log.SetFormatter(&easy.Formatter{
+		TimestampFormat: "2006-01-02 15:04:05",
+		LogFormat:       "[imago][%time%][%lvl%]: %msg% \n",
+	})
+	log.SetLevel(log.DebugLevel)
+}
+
+// Setloglevel
+func Setloglevel(level log.Level) {
+	log.SetLevel(level)
+}
+
+// Imgexsits Return whether the name is in map
 func Imgexsits(name string) bool {
 	index := name[:3]
 	tail := name[3:]
@@ -46,10 +62,10 @@ func Addimage(name string) {
 	defer mutex.Unlock()
 	if images[index] == nil {
 		images[index] = make([]string, 0)
-		fmt.Println("[addimage] create index", index, ".")
+		log.Debugln("[addimage] create index", index, ".")
 	}
 	images[index] = append(images[index], tail)
-	fmt.Println("[addimage] index", index, "append file", tail, ".")
+	log.Debugln("[addimage] index", index, "append file", tail, ".")
 	images["sum"] = append(images["sum"], name)
 }
 
@@ -64,44 +80,49 @@ func Saveimgbytes(b []byte, imgdir string, uid string, force bool) string {
 		if err == nil {
 			iswebp = true
 		} else {
-			fmt.Printf("[saveimg] decode image error: %v\n", err)
+			log.Errorf("[saveimg] decode image error: %v\n", err)
 			return "\"stat\": \"notanimg\""
 		}
 	}
 	dh, err := GetDHashStr(img)
 	if err != nil {
+		log.Errorf("[saveimg] get dhash error: %v\n", err)
 		return "\"stat\": \"dherr\""
 	}
 	if force && Imgexsits(dh) {
+		log.Debugf("[saveimg] force find similar image %s.\n", dh)
 		return "\"stat\":\"exist\", \"img\": \"" + url.QueryEscape(dh) + "\""
 	} else {
 		for _, name := range images["sum"] {
 			diff, err := HammDistance(dh, name)
 			if err == nil && diff < 10 { // 认为是一张图片
-				fmt.Printf("[saveimg] old %s.\n", name)
+				log.Debugf("[saveimg] old %s.\n", name)
 				return "\"stat\":\"exist\", \"img\": \"" + url.QueryEscape(name) + "\""
 			}
 		}
 	}
 	f, err := os.Create(imgdir + dh + ".webp")
 	if err != nil {
+		log.Errorf("[saveimg] create webp file error: %v\n", err)
 		return "\"stat\": \"ioerr\""
 	}
 	defer f.Close()
 	if !iswebp {
 		options, err := encoder.NewLossyEncoderOptions(encoder.PresetDefault, 75)
 		if err != nil || webp.Encode(f, img, options) != nil {
+			log.Errorf("[saveimg] encode webp error: %v\n", err)
 			return "\"stat\": \"encerr\""
 		}
 	} else {
 		r.Seek(0, io.SeekStart)
 		c, err := io.Copy(f, r)
 		if err != nil {
+			log.Errorf("[saveimg] copy file error: %v\n", err)
 			return "\"stat\": \"ioerr\""
 		}
-		fmt.Printf("[saveimg] save %d bytes.\n", c)
+		log.Debugf("[saveimg] save %d bytes.\n", c)
 	}
-	fmt.Printf("[saveimg] new %s.\n", dh)
+	log.Debugf("[saveimg] new %s.\n", dh)
 	return "\"stat\":\"success\", \"img\": \"" + url.QueryEscape(dh) + "\""
 }
 
