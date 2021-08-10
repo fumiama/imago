@@ -69,8 +69,8 @@ func Addimage(name string) {
 	images["sum"] = append(images["sum"], name)
 }
 
-// Saveimgbytes Save image into imgdir with name like 编码后哈希.webp
-func Saveimgbytes(b []byte, imgdir string, uid string, force bool) string {
+// Saveimgbytes Save image into imgdir with name like 编码后哈希.webp Return value: status, dhash
+func Saveimgbytes(b []byte, imgdir string, uid string, force bool) (string, string) {
 	r := bytes.NewReader(b)
 	img, _, err := image.Decode(r)
 	iswebp := false
@@ -81,53 +81,53 @@ func Saveimgbytes(b []byte, imgdir string, uid string, force bool) string {
 			iswebp = true
 		} else {
 			log.Errorf("[saveimg] decode image error: %v\n", err)
-			return "\"stat\": \"notanimg\""
+			return "\"stat\": \"notanimg\"", ""
 		}
 	}
 	dh, err := GetDHashStr(img)
 	if err != nil {
 		log.Errorf("[saveimg] get dhash error: %v\n", err)
-		return "\"stat\": \"dherr\""
+		return "\"stat\": \"dherr\"", ""
 	}
 	if force && Imgexsits(dh) {
 		log.Debugf("[saveimg] force find similar image %s.\n", dh)
-		return "\"stat\":\"exist\", \"img\": \"" + url.QueryEscape(dh) + "\""
+		return "\"stat\":\"exist\", \"img\": \"" + url.QueryEscape(dh) + "\"", dh
 	} else {
 		for _, name := range images["sum"] {
 			diff, err := HammDistance(dh, name)
 			if err == nil && diff < 10 { // 认为是一张图片
 				log.Debugf("[saveimg] old %s.\n", name)
-				return "\"stat\":\"exist\", \"img\": \"" + url.QueryEscape(name) + "\""
+				return "\"stat\":\"exist\", \"img\": \"" + url.QueryEscape(name) + "\"", name
 			}
 		}
 	}
 	f, err := os.Create(imgdir + dh + ".webp")
 	if err != nil {
 		log.Errorf("[saveimg] create webp file error: %v\n", err)
-		return "\"stat\": \"ioerr\""
+		return "\"stat\": \"ioerr\"", ""
 	}
 	defer f.Close()
 	if !iswebp {
 		options, err := encoder.NewLossyEncoderOptions(encoder.PresetDefault, 75)
 		if err != nil || webp.Encode(f, img, options) != nil {
 			log.Errorf("[saveimg] encode webp error: %v\n", err)
-			return "\"stat\": \"encerr\""
+			return "\"stat\": \"encerr\"", ""
 		}
 	} else {
 		r.Seek(0, io.SeekStart)
 		c, err := io.Copy(f, r)
 		if err != nil {
 			log.Errorf("[saveimg] copy file error: %v\n", err)
-			return "\"stat\": \"ioerr\""
+			return "\"stat\": \"ioerr\"", ""
 		}
 		log.Debugf("[saveimg] save %d bytes.\n", c)
 	}
 	log.Debugf("[saveimg] new %s.\n", dh)
-	return "\"stat\":\"success\", \"img\": \"" + url.QueryEscape(dh) + "\""
+	return "\"stat\":\"success\", \"img\": \"" + url.QueryEscape(dh) + "\"", dh
 }
 
-// Saveimg Save image into imgdir with name like 编码后哈希.webp
-func Saveimg(r io.Reader, imgdir string, uid string) string {
+// Saveimg Save image into imgdir with name like 编码后哈希.webp Return value: status, dhash
+func Saveimg(r io.Reader, imgdir string, uid string) (string, string) {
 	imgbuff := make([]byte, 1024*1024) // 1m
 	r.Read(imgbuff)
 	return Saveimgbytes(imgbuff, imgdir, uid, false)

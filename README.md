@@ -14,9 +14,10 @@ Get hamming distance between two dhash strings
 Scan all images like 编码后哈希.webp
 ### func Pick(exclude []string) string
 Pick a random image
-### func Saveimgbytes(b []byte, imgdir string, uid string, force bool) string
-### func Saveimg(r io.Reader, imgdir string, uid string) string
+### func Saveimgbytes(b []byte, imgdir string, uid string, force bool) (string, string)
+### func Saveimg(r io.Reader, imgdir string, uid string) (string, string)
 Save image into imgdir with name like 编码后哈希.webp
+Return value: status, dhash
 ### func Addimage(name string)
 manually add an image name into map
 ### func Imgexsits(name string) bool
