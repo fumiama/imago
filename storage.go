@@ -26,7 +26,7 @@ var (
 func init() {
 	log.SetFormatter(&easy.Formatter{
 		TimestampFormat: "2006-01-02 15:04:05",
-		LogFormat:       "[imago][%time%][%lvl%]: %msg% \n",
+		LogFormat:       "[imago][%time%][%lvl%]: %msg%\n",
 	})
 	log.SetLevel(log.DebugLevel)
 }
@@ -62,10 +62,10 @@ func Addimage(name string) {
 	defer mutex.Unlock()
 	if images[index] == nil {
 		images[index] = make([]string, 0)
-		log.Debugln("[addimage] create index", index, ".")
+		log.Debugf("[addimage] create index %v.", index)
 	}
 	images[index] = append(images[index], tail)
-	log.Debugln("[addimage] index", index, "append file", tail, ".")
+	log.Debugf("[addimage] index %v append file %v.", index, tail)
 	images["sum"] = append(images["sum"], name)
 }
 
@@ -80,51 +80,51 @@ func Saveimgbytes(b []byte, imgdir string, force bool, samediff int) (string, st
 		if err == nil {
 			iswebp = true
 		} else {
-			log.Errorf("[saveimg] decode image error: %v\n", err)
+			log.Errorf("[saveimg] decode image error: %v", err)
 			return "\"stat\": \"notanimg\"", ""
 		}
 	}
 	dh, err := GetDHashStr(img)
 	if err != nil {
-		log.Errorf("[saveimg] get dhash error: %v\n", err)
+		log.Errorf("[saveimg] get dhash error: %v", err)
 		return "\"stat\": \"dherr\"", ""
 	}
 	if force {
 		if Imgexsits(dh) {
-			log.Debugf("[saveimg] force find similar image %s.\n", dh)
+			log.Debugf("[saveimg] force find similar image %s.", dh)
 			return "\"stat\":\"exist\", \"img\": \"" + url.QueryEscape(dh) + "\"", dh
 		}
 	} else {
 		for _, name := range images["sum"] {
 			diff, err := HammDistance(dh, name)
 			if err == nil && diff <= samediff { // 认为是一张图片
-				log.Debugf("[saveimg] old %s.\n", name)
+				log.Debugf("[saveimg] old %s.", name)
 				return "\"stat\":\"exist\", \"img\": \"" + url.QueryEscape(name) + "\"", name
 			}
 		}
 	}
 	f, err := os.Create(imgdir + dh + ".webp")
 	if err != nil {
-		log.Errorf("[saveimg] create webp file error: %v\n", err)
+		log.Errorf("[saveimg] create webp file error: %v", err)
 		return "\"stat\": \"ioerr\"", ""
 	}
 	defer f.Close()
 	if !iswebp {
 		options, err := encoder.NewLossyEncoderOptions(encoder.PresetDefault, 75)
 		if err != nil || webp.Encode(f, img, options) != nil {
-			log.Errorf("[saveimg] encode webp error: %v\n", err)
+			log.Errorf("[saveimg] encode webp error: %v", err)
 			return "\"stat\": \"encerr\"", ""
 		}
 	} else {
 		r.Seek(0, io.SeekStart)
 		c, err := io.Copy(f, r)
 		if err != nil {
-			log.Errorf("[saveimg] copy file error: %v\n", err)
+			log.Errorf("[saveimg] copy file error: %v", err)
 			return "\"stat\": \"ioerr\"", ""
 		}
-		log.Debugf("[saveimg] save %d bytes.\n", c)
+		log.Debugf("[saveimg] save %d bytes.", c)
 	}
-	log.Debugf("[saveimg] new %s.\n", dh)
+	log.Debugf("[saveimg] new %s.", dh)
 	Addimage(dh)
 	return "\"stat\":\"success\", \"img\": \"" + url.QueryEscape(dh) + "\"", dh
 }
