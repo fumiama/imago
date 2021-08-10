@@ -70,7 +70,7 @@ func Addimage(name string) {
 }
 
 // Saveimgbytes Save image into imgdir with name like 编码后哈希.webp Return value: status, dhash
-func Saveimgbytes(b []byte, imgdir string, uid string, force bool) (string, string) {
+func Saveimgbytes(b []byte, imgdir string, uid string, force bool, samediff int) (string, string) {
 	r := bytes.NewReader(b)
 	img, _, err := image.Decode(r)
 	iswebp := false
@@ -95,7 +95,7 @@ func Saveimgbytes(b []byte, imgdir string, uid string, force bool) (string, stri
 	} else {
 		for _, name := range images["sum"] {
 			diff, err := HammDistance(dh, name)
-			if err == nil && diff < 10 { // 认为是一张图片
+			if err == nil && diff < samediff { // 认为是一张图片
 				log.Debugf("[saveimg] old %s.\n", name)
 				return "\"stat\":\"exist\", \"img\": \"" + url.QueryEscape(name) + "\"", name
 			}
@@ -127,10 +127,10 @@ func Saveimgbytes(b []byte, imgdir string, uid string, force bool) (string, stri
 }
 
 // Saveimg Save image into imgdir with name like 编码后哈希.webp Return value: status, dhash
-func Saveimg(r io.Reader, imgdir string, uid string) (string, string) {
+func Saveimg(r io.Reader, imgdir string, uid string, samediff int) (string, string) {
 	imgbuff := make([]byte, 1024*1024) // 1m
 	r.Read(imgbuff)
-	return Saveimgbytes(imgbuff, imgdir, uid, false)
+	return Saveimgbytes(imgbuff, imgdir, uid, false, samediff)
 }
 
 // Scanimgs Scan all images like 编码后哈希.webp
