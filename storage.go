@@ -176,7 +176,7 @@ func Pick(exclude []string) string {
 		return ""
 	} else if le == 0 {
 		return sum[rand.Intn(len(sum))]
-	} else if ls/le > 10 {
+	} else if (ls >> 2) > le {
 		name := sum[rand.Intn(len(sum))]
 		for namein(name, exclude) {
 			name = sum[rand.Intn(len(sum))]
