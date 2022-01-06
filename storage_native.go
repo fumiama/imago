@@ -120,3 +120,13 @@ func (ns *NativeStorage) ScanImgs(imgdir string) error {
 	}
 	return nil
 }
+
+// SaveConf Save config file into storage
+func (ns *NativeStorage) SaveConf(data []byte) error {
+	return os.WriteFile("conf.pb", data, 0644)
+}
+
+// SaveConf Save config file into storage
+func (ns *NativeStorage) GetConf() ([]byte, error) {
+	return os.ReadFile("conf.pb")
+}

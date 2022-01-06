@@ -17,6 +17,8 @@ type StorageInstance interface {
 	IsImgExsits(name string) bool
 	AddImage(name string)
 	Pick(exclude []string) string
+	SaveConf(data []byte) error
+	GetConf() ([]byte, error)
 }
 
 type storage struct {

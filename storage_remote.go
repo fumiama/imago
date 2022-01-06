@@ -123,3 +123,14 @@ func (remo *RemoteStorage) ScanImgs(imgdir string) error {
 	}
 	return nil
 }
+
+// SaveConf Save config file into storage
+func (remo *RemoteStorage) SaveConf(data []byte) error {
+	return remo.cli.SetFile("cfg", "conf.pb", data)
+}
+
+// SaveConf Save config file into storage
+func (remo *RemoteStorage) GetConf() (data []byte, err error) {
+	data, _, err = remo.cli.GetFile("cfg", "conf.pb")
+	return
+}
