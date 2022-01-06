@@ -2,45 +2,33 @@
 package imago
 
 import (
-	"bytes"
-	"image"
 	"io"
 	"math/rand"
-	"net/url"
-	"os"
-	"strings"
 	"sync"
 
-	"github.com/kolesa-team/go-webp/decoder"
-	"github.com/kolesa-team/go-webp/encoder"
-	"github.com/kolesa-team/go-webp/webp"
 	log "github.com/sirupsen/logrus"
-	easy "github.com/t-tomalak/logrus-easy-formatter"
 )
 
-var (
-	images = make(map[string][]string)
-	mutex  sync.Mutex
-)
-
-func init() {
-	log.SetFormatter(&easy.Formatter{
-		TimestampFormat: "2006-01-02 15:04:05",
-		LogFormat:       "[imago][%time%][%lvl%]: %msg%\n",
-	})
-	log.SetLevel(log.DebugLevel)
+type StorageInstance interface {
+	GetImgBytes(imgdir, name string) ([]byte, error)
+	SaveImgBytes(b []byte, imgdir string, force bool, samediff int) (string, string)
+	SaveImg(r io.Reader, imgdir string, samediff int) (string, string)
+	ScanImgs(imgdir string)
 }
 
-// Setloglevel
-func Setloglevel(level log.Level) {
-	log.SetLevel(level)
+type storage struct {
+	images map[string][]string
+	mutex  sync.RWMutex
+	StorageInstance
 }
 
-// Imgexsits Return whether the name is in map
-func Imgexsits(name string) bool {
+// IsImgExsits Return whether the name is in map
+func (sr *storage) IsImgExsits(name string) bool {
 	index := name[:3]
 	tail := name[3:]
-	tails, ok := images[index]
+	sr.mutex.RLock()
+	tails, ok := sr.images[index]
+	sr.mutex.RUnlock()
 	if ok {
 		found := false
 		for _, t := range tails {
@@ -54,106 +42,19 @@ func Imgexsits(name string) bool {
 	return false
 }
 
-// Addimage manually add an image name into map
-func Addimage(name string) {
+// AddImage manually add an image name into map
+func (sr *storage) AddImage(name string) {
 	index := name[:3]
 	tail := name[3:]
-	mutex.Lock()
-	defer mutex.Unlock()
-	if images[index] == nil {
-		images[index] = make([]string, 0)
+	sr.mutex.Lock()
+	defer sr.mutex.Unlock()
+	if sr.images[index] == nil {
+		sr.images[index] = make([]string, 0)
 		log.Debugf("[addimage] create index %v.", index)
 	}
-	images[index] = append(images[index], tail)
+	sr.images[index] = append(sr.images[index], tail)
 	log.Debugf("[addimage] index %v append file %v.", index, tail)
-	images["sum"] = append(images["sum"], name)
-}
-
-// Saveimgbytes Save image into imgdir with name like 编码后哈希.webp Return value: status, dhash
-func Saveimgbytes(b []byte, imgdir string, force bool, samediff int) (string, string) {
-	r := bytes.NewReader(b)
-	img, _, err := image.Decode(r)
-	iswebp := false
-	if err != nil {
-		r.Seek(0, io.SeekStart)
-		img, err = webp.Decode(r, &decoder.Options{})
-		if err == nil {
-			iswebp = true
-		} else {
-			log.Errorf("[saveimg] decode image error: %v", err)
-			return "\"stat\": \"notanimg\"", ""
-		}
-	}
-	dh, err := GetDHashStr(img)
-	if err != nil {
-		log.Errorf("[saveimg] get dhash error: %v", err)
-		return "\"stat\": \"dherr\"", ""
-	}
-	if force {
-		if Imgexsits(dh) {
-			log.Debugf("[saveimg] force find similar image %s.", dh)
-			return "\"stat\":\"exist\", \"img\": \"" + url.QueryEscape(dh) + "\"", dh
-		}
-	} else {
-		for _, name := range images["sum"] {
-			diff, err := HammDistance(dh, name)
-			if err == nil && diff <= samediff { // 认为是一张图片
-				log.Debugf("[saveimg] old %s.", name)
-				return "\"stat\":\"exist\", \"img\": \"" + url.QueryEscape(name) + "\"", name
-			}
-		}
-	}
-	f, err := os.Create(imgdir + dh + ".webp")
-	if err != nil {
-		log.Errorf("[saveimg] create webp file error: %v", err)
-		return "\"stat\": \"ioerr\"", ""
-	}
-	defer f.Close()
-	if !iswebp {
-		options, err := encoder.NewLossyEncoderOptions(encoder.PresetDefault, 75)
-		if err != nil || webp.Encode(f, img, options) != nil {
-			log.Errorf("[saveimg] encode webp error: %v", err)
-			return "\"stat\": \"encerr\"", ""
-		}
-	} else {
-		r.Seek(0, io.SeekStart)
-		c, err := io.Copy(f, r)
-		if err != nil {
-			log.Errorf("[saveimg] copy file error: %v", err)
-			return "\"stat\": \"ioerr\"", ""
-		}
-		log.Debugf("[saveimg] save %d bytes.", c)
-	}
-	log.Debugf("[saveimg] new %s.", dh)
-	Addimage(dh)
-	return "\"stat\":\"success\", \"img\": \"" + url.QueryEscape(dh) + "\"", dh
-}
-
-// Saveimg Save image into imgdir with name like 编码后哈希.webp Return value: status, dhash
-func Saveimg(r io.Reader, imgdir string, samediff int) (string, string) {
-	imgbuff := make([]byte, 1024*1024) // 1m
-	r.Read(imgbuff)
-	return Saveimgbytes(imgbuff, imgdir, false, samediff)
-}
-
-// Scanimgs Scan all images like 编码后哈希.webp
-func Scanimgs(imgdir string) error {
-	entry, err := os.ReadDir(imgdir)
-	if err != nil {
-		return err
-	}
-	for _, i := range entry {
-		if !i.IsDir() {
-			name := i.Name()
-			if strings.HasSuffix(name, ".webp") {
-				name = name[:len(name)-5]
-				if len([]rune(name)) == 5 {
-					Addimage(name)
-				}
-			}
-		}
-	}
-	return nil
+	sr.images["sum"] = append(sr.images["sum"], name)
 }
 
 func namein(name string, list []string) bool {
@@ -168,8 +69,10 @@ func namein(name string, list []string) bool {
 }
 
 // Pick Pick a random image
-func Pick(exclude []string) string {
-	sum := images["sum"]
+func (sr *storage) Pick(exclude []string) string {
+	sr.mutex.RLock()
+	sum := sr.images["sum"]
+	sr.mutex.RUnlock()
 	le := len(exclude)
 	ls := len(sum)
 	if le >= ls {

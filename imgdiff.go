@@ -11,16 +11,11 @@ import (
 var lastchar = "㴁"
 
 func decodeDHash(imgname string) *goimagehash.ImageHash {
-	b, err := base14.UTF82utf16be(Str2bytes(imgname + lastchar))
+	b, err := base14.UTF82utf16be(StringToBytes(imgname + lastchar))
 	if err == nil {
 		dhb := base14.Decode(b)
-		if dhb != nil {
-			dh, err1 := bytes82uint64(dhb)
-			base14.Free(dhb)
-			if err1 == nil {
-				return goimagehash.NewImageHash(dh, goimagehash.DHash)
-			}
-		}
+		dh := binary.BigEndian.Uint64(dhb)
+		return goimagehash.NewImageHash(dh, goimagehash.DHash)
 	}
 	return nil
 }
@@ -36,12 +31,11 @@ func HammDistance(img1 string, img2 string) (int, error) {
 func GetDHashStr(img image.Image) (string, error) {
 	dh, err := goimagehash.DifferenceHash(img)
 	if err == nil {
-		data := make([]byte, 8)
-		binary.BigEndian.PutUint64(data, dh.GetHash())
-		e := base14.Encode(data)
+		var data [8]byte
+		binary.BigEndian.PutUint64(data[:], dh.GetHash())
+		e := base14.Encode(data[:])
 		b, _ := base14.UTF16be2utf8(e)
-		base14.Free(e)
-		return string(b)[:15], nil
+		return BytesToString(b)[:15], nil
 	}
 	return "", err
 }

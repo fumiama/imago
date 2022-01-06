@@ -1,34 +1,32 @@
 package imago
 
 import (
-	"bytes"
-	"encoding/binary"
-	"fmt"
 	"unsafe"
 )
 
-// Str2bytes Fast convert
-func Str2bytes(s string) []byte {
-	x := (*[2]uintptr)(unsafe.Pointer(&s))
-	h := [3]uintptr{x[0], x[1], x[1]}
-	return *(*[]byte)(unsafe.Pointer(&h))
+// slice is the runtime representation of a slice.
+// It cannot be used safely or portably and its representation may
+// change in a later release.
+//
+// Unlike reflect.SliceHeader, its Data field is sufficient to guarantee the
+// data it references will not be garbage collected.
+type slice struct {
+	data unsafe.Pointer
+	len  int
+	cap  int
 }
 
-// Bytes2str Fast convert
-func Bytes2str(b []byte) string {
+// BytesToString 没有内存开销的转换
+func BytesToString(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
 }
 
-// bytes82uint64 字节数(大端)组转成int(无符号的)
-func bytes82uint64(b []byte) (uint64, error) {
-	if len(b) == 9 {
-		b = b[:7]
-	}
-	if len(b) == 8 {
-		bytesBuffer := bytes.NewBuffer(b)
-		var tmp uint64
-		err := binary.Read(bytesBuffer, binary.BigEndian, &tmp)
-		return tmp, err
-	}
-	return 0, fmt.Errorf("%s", "bytes lenth is invaild!")
+// StringToBytes 没有内存开销的转换
+func StringToBytes(s string) (b []byte) {
+	bh := (*slice)(unsafe.Pointer(&b))
+	sh := (*slice)(unsafe.Pointer(&s)) // 不要访问 sh.cap
+	bh.data = sh.data
+	bh.len = sh.len
+	bh.cap = sh.len
+	return b
 }
