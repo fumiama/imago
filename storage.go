@@ -13,7 +13,7 @@ type StorageInstance interface {
 	GetImgBytes(imgdir, name string) ([]byte, error)
 	SaveImgBytes(b []byte, imgdir string, force bool, samediff int) (string, string)
 	SaveImg(r io.Reader, imgdir string, samediff int) (string, string)
-	ScanImgs(imgdir string)
+	ScanImgs(imgdir string) error
 	IsImgExsits(name string) bool
 	AddImage(name string)
 	Pick(exclude []string) string
