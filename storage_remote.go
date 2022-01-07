@@ -131,6 +131,6 @@ func (remo *RemoteStorage) SaveConf(data []byte) error {
 
 // SaveConf Save config file into storage
 func (remo *RemoteStorage) GetConf() (data []byte, err error) {
-	data, _, err = remo.cli.GetFile("cfg", "conf.pb")
+	data, _, err = remo.cli.GetSecureFile("cfg", "conf.pb")
 	return
 }
