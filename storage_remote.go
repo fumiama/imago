@@ -3,6 +3,9 @@ package imago
 import (
 	"bytes"
 	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 	"io"
 	"net/url"
 	"strings"
